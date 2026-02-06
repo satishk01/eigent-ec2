@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Eigent</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .section {
+            background: #252526;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 3px solid #007acc;
+        }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+        h2 { color: #4ec9b0; margin-top: 0; }
+        pre { background: #1e1e1e; padding: 10px; overflow-x: auto; }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 3px;
+            margin: 5px;
+        }
+        button:hover { background: #005a9e; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Eigent Debug Tool</h1>
+    
+    <div class="section">
+        <h2>Environment Check</h2>
+        <div id="env-check">Running checks...</div>
+    </div>
+
+    <div class="section">
+        <h2>API Tests</h2>
+        <button onclick="testBackend()">Test Backend</button>
+        <button onclick="testFrontend()">Test Frontend</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>Browser Info</h2>
+        <div id="browser-info"></div>
+    </div>
+
+    <div class="section">
+        <h2>Console Errors</h2>
+        <div id="console-errors">No errors captured yet. Check browser console (F12) for real-time errors.</div>
+    </div>
+
+    <script>
+        // Capture console errors
+        const originalError = console.error;
+        const errors = [];
+        console.error = function(...args) {
+            errors.push(args.join(' '));
+            updateConsoleErrors();
+            originalError.apply(console, args);
+        };
+
+        function updateConsoleErrors() {
+            const div = document.getElementById('console-errors');
+            if (errors.length > 0) {
+                div.innerHTML = '<pre class="error">' + errors.join('\n') + '</pre>';
+            }
+        }
+
+        // Environment check
+        function checkEnvironment() {
+            const checks = {
+                'Window object': typeof window !== 'undefined',
+                'Document object': typeof document !== 'undefined',
+                'Fetch API': typeof fetch !== 'undefined',
+                'LocalStorage': typeof localStorage !== 'undefined',
+                'SessionStorage': typeof sessionStorage !== 'undefined',
+                'Location': window.location ? true : false,
+                'Current URL': window.location.href,
+                'Origin': window.location.origin,
+                'Hostname': window.location.hostname,
+                'Port': window.location.port,
+                'Protocol': window.location.protocol,
+            };
+
+            let html = '<table style="width:100%">';
+            for (const [key, value] of Object.entries(checks)) {
+                const status = value === true || value ? 
+                    '<span class="success">✓</span>' : 
+                    '<span class="error">✗</span>';
+                html += `<tr><td>${key}</td><td>${status}</td><td>${value}</td></tr>`;
+            }
+            html += '</table>';
+            
+            document.getElementById('env-check').innerHTML = html;
+        }
+
+        // Test backend
+        async function testBackend() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<p class="warning">Testing backend...</p>';
+
+            const tests = [
+                { name: 'Backend Health (Proxied)', url: '/api/health' },
+                { name: 'Backend Health (Direct)', url: `http://${window.location.hostname}:8000/api/health` },
+            ];
+
+            let html = '<h3>Backend Tests:</h3>';
+            
+            for (const test of tests) {
+                try {
+                    const response = await fetch(test.url);
+                    const data = await response.text();
+                    
+                    if (response.ok) {
+                        html += `<p class="success">✓ ${test.name}: ${response.status} OK</p>`;
+                        html += `<pre>${data}</pre>`;
+                    } else {
+                        html += `<p class="error">✗ ${test.name}: ${response.status} ${response.statusText}</p>`;
+                    }
+                } catch (error) {
+                    html += `<p class="error">✗ ${test.name}: ${error.message}</p>`;
+                }
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // Test frontend
+        async function testFrontend() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<p class="warning">Testing frontend...</p>';
+
+            const tests = [
+                { name: 'Index HTML', url: '/' },
+                { name: 'Main JS', url: '/src/main.tsx' },
+                { name: 'Vite Client', url: '/@vite/client' },
+            ];
+
+            let html = '<h3>Frontend Tests:</h3>';
+            
+            for (const test of tests) {
+                try {
+                    const response = await fetch(test.url);
+                    
+                    if (response.ok) {
+                        html += `<p class="success">✓ ${test.name}: ${response.status} OK</p>`;
+                    } else {
+                        html += `<p class="error">✗ ${test.name}: ${response.status} ${response.statusText}</p>`;
+                    }
+                } catch (error) {
+                    html += `<p class="error">✗ ${test.name}: ${error.message}</p>`;
+                }
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // Browser info
+        function showBrowserInfo() {
+            const info = {
+                'User Agent': navigator.userAgent,
+                'Platform': navigator.platform,
+                'Language': navigator.language,
+                'Online': navigator.onLine,
+                'Cookies Enabled': navigator.cookieEnabled,
+                'Screen Resolution': `${screen.width}x${screen.height}`,
+                'Viewport Size': `${window.innerWidth}x${window.innerHeight}`,
+            };
+
+            let html = '<table style="width:100%">';
+            for (const [key, value] of Object.entries(info)) {
+                html += `<tr><td><strong>${key}:</strong></td><td>${value}</td></tr>`;
+            }
+            html += '</table>';
+            
+            document.getElementById('browser-info').innerHTML = html;
+        }
+
+        // Check localStorage
+        function checkLocalStorage() {
+            try {
+                const authStore = localStorage.getItem('auth-store');
+                if (authStore) {
+                    console.log('Auth store found:', JSON.parse(authStore));
+                } else {
+                    console.log('No auth store found');
+                }
+            } catch (e) {
+                console.error('Error reading localStorage:', e);
+            }
+        }
+
+        // Run checks on load
+        window.addEventListener('load', () => {
+            checkEnvironment();
+            showBrowserInfo();
+            checkLocalStorage();
+            
+            // Auto-test backend after 1 second
+            setTimeout(testBackend, 1000);
+        });
+
+        // Capture unhandled errors
+        window.addEventListener('error', (event) => {
+            errors.push(`Unhandled error: ${event.message} at ${event.filename}:${event.lineno}`);
+            updateConsoleErrors();
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            errors.push(`Unhandled promise rejection: ${event.reason}`);
+            updateConsoleErrors();
+        });
+    </script>
+</body>
+</html>
